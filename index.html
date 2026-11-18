@@ -24,6 +24,10 @@
   #bar button { background:#2a2926; color:var(--ink); border:1px solid #4a4740; border-radius:6px; padding:.45rem .8rem; }
   #bar button.on { background:var(--or); border-color:var(--or); color:#fff; }
   #bar a { color:var(--mute); font-size:.85rem; margin-left:6px; }
+  #fsbox { display:none; position:fixed; inset:0; z-index:30; background:#000; }
+  #fs { width:100%; height:100%; object-fit:contain; background:#000; }
+  #fsclose { position:absolute; top:12px; right:12px; z-index:31; background:rgba(20,20,20,.8); color:var(--ink);
+             border:1px solid #4a4740; border-radius:6px; padding:.4rem .8rem; }
   #hint { position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10; color:var(--ink);
           background:rgba(20,20,20,.75); padding:6px 12px; border-radius:6px; font-size:.9rem; }
 </style>
@@ -32,31 +36,35 @@
 <div id="start">
   <h1>Thermomechanical modelling of segregation and rejuvenation in TVZ-like magmas</h1>
   <p>Point your camera at the poster. The film strip in the middle plays the simulations it was cut from.</p>
+  <p>Tap <b>Full screen</b> at any time to watch the current run at full size. Turn your phone sideways for the biggest view.</p>
   <p>No poster to hand? Open <a href="poster.jpg" target="_blank">the poster image</a> on another screen and point at that.</p>
   <button id="go">Start camera</button>
 </div>
 
 <div id="hint">Looking for the poster…</div>
+<div id="fsbox"><video id="fs" loop muted playsinline webkit-playsinline controls></video>
+<button id="fsclose">Back to the poster</button></div>
 
 <div id="bar">
   <button data-run="A">A Cooling only</button>
   <button data-run="B" class="on">B Pulsed recharge</button>
   <button data-run="C">C Basalt under mush</button>
+  <button id="full">Full screen</button>
   <a id="viewer" href="viewers/magma_column_rhyolite_neutral_buoyancy.html" target="_blank">interactive viewer</a>
 </div>
 
-<a-scene id="scene" mindar-image="imageTargetSrc: poster.mind; autoStart: false; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001"
+<a-scene id="scene" mindar-image="imageTargetSrc: poster.mind; autoStart: false; uiScanning: no; uiLoading: no; filterMinCF: 0.001; filterBeta: 10"
          color-space="sRGB" renderer="colorManagement: true; physicallyCorrectLights: true"
          vr-mode-ui="enabled: false" xr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
   <a-assets>
     <video id="vid" preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
   </a-assets>
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-  <!-- target is 1 unit wide (84.1 cm). Film band spans 40.7-86.0 cm down the 118.9 cm sheet.
-       Screen height = band height (45.3 cm = 0.539), viewer aspect 950:700, right edge on the 2.4 cm margin. -->
+  <!-- target is 1 unit wide (84.1 cm). Film band spans 38.3-83.6 cm down the 118.9 cm sheet (centre 61.0 cm,
+       1.5 cm below the sheet centre = -0.018). Screen = full poster width (1.0), viewer aspect 950:700. -->
   <a-entity id="tgt" mindar-image-target="targetIndex: 0">
-    <a-plane color="#000000" position="0.106 -0.0466 0.004" width="0.745" height="0.553"></a-plane>
-    <a-video src="#vid" position="0.106 -0.0466 0.008" width="0.731" height="0.539"></a-video>
+    <a-plane color="#000000" position="0 -0.018 0.004" width="1.016" height="0.753"></a-plane>
+    <a-video src="#vid" position="0 -0.018 0.008" width="1.0" height="0.737"></a-video>
   </a-entity>
 </a-scene>
 
@@ -80,14 +88,30 @@ const tgt = document.getElementById('tgt');
 tgt.addEventListener('targetFound', () => { hint.style.display = 'none'; vid.play().catch(() => {}); });
 tgt.addEventListener('targetLost',  () => { hint.style.display = 'block'; hint.textContent = 'Looking for the poster…'; vid.pause(); });
 
-document.querySelectorAll('#bar button').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('#bar button').forEach(x => x.classList.toggle('on', x === b));
-  const k = b.dataset.run;
+let RUN = 'B';
+document.querySelectorAll('#bar button[data-run]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#bar button[data-run]').forEach(x => x.classList.toggle('on', x === b));
+  const k = b.dataset.run; RUN = k;
   const wasPlaying = !vid.paused;
   vid.src = `media/run${k}.${EXT}`; vid.load();
   if (wasPlaying) vid.play().catch(() => {});
   document.getElementById('viewer').href = 'viewers/' + VIEW[k];
 }));
+
+// full screen: the same loop in a plain video element, as large as the phone allows (rotate for landscape)
+const fs = document.getElementById('fs'), fsclose = document.getElementById('fsclose'), fsbox = document.getElementById('fsbox');
+document.getElementById('full').addEventListener('click', () => {
+  fs.src = `media/run${RUN}.${EXT}`; fs.currentTime = vid.currentTime || 0;
+  fsbox.style.display = 'block';
+  fs.play().catch(() => {});
+  if (fsbox.requestFullscreen) fsbox.requestFullscreen().catch(() => {});
+  else if (fs.webkitEnterFullscreen) fs.webkitEnterFullscreen();   // iPhone Safari: video-only full screen, closed with Done
+});
+function closeFs() { fs.pause(); fsbox.style.display = 'none';
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
+fsclose.addEventListener('click', closeFs);
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && fsbox.style.display === 'block') closeFs(); });
+fs.addEventListener('webkitendfullscreen', closeFs);
 </script>
 </body>
 </html>
