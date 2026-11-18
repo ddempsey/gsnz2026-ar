@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Magma column poster, live</title>
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-master.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<style>
+  :root { --ink:#F2EEE6; --mute:#B8B0A2; --or:#E2621B; --bg:#141414; }
+  html { background:var(--bg); }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:"Segoe UI", system-ui, sans-serif; }
+  #start { position:fixed; inset:0; z-index:20; background:var(--bg); color:var(--ink);
+           display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
+  #start h1 { font-weight:600; font-size:1.4rem; margin:0 0 .6rem; }
+  #start p { color:var(--mute); max-width:30rem; line-height:1.45; margin:.4rem 0; }
+  #start a { color:var(--or); }
+  button { font:inherit; cursor:pointer; }
+  #go { margin-top:1.2rem; background:var(--or); color:#fff; border:0; border-radius:8px; padding:.8rem 1.6rem; font-size:1.05rem; font-weight:600; }
+  #bar { position:fixed; left:0; right:0; bottom:0; z-index:10; display:flex; gap:8px; justify-content:center; align-items:center;
+         padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(20,20,20,.82); color:var(--ink); flex-wrap:wrap; }
+  #bar button { background:#2a2926; color:var(--ink); border:1px solid #4a4740; border-radius:6px; padding:.45rem .8rem; }
+  #bar button.on { background:var(--or); border-color:var(--or); color:#fff; }
+  #bar a { color:var(--mute); font-size:.85rem; margin-left:6px; }
+  #hint { position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10; color:var(--ink);
+          background:rgba(20,20,20,.75); padding:6px 12px; border-radius:6px; font-size:.9rem; }
+</style>
+</head>
+<body>
+<div id="start">
+  <h1>Thermomechanical modelling of segregation and rejuvenation in TVZ-like magmas</h1>
+  <p>Point your camera at the poster. The film strip in the middle plays the simulations it was cut from.</p>
+  <p>No poster to hand? Open <a href="poster.jpg" target="_blank">the poster image</a> on another screen and point at that.</p>
+  <button id="go">Start camera</button>
+</div>
+
+<div id="hint">Looking for the poster…</div>
+
+<div id="bar">
+  <button data-run="A">A Cooling only</button>
+  <button data-run="B" class="on">B Pulsed recharge</button>
+  <button data-run="C">C Basalt under mush</button>
+  <a id="viewer" href="viewers/magma_column_rhyolite_neutral_buoyancy.html" target="_blank">interactive viewer</a>
+</div>
+
+<a-scene id="scene" mindar-image="imageTargetSrc: poster.mind; autoStart: false; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001"
+         color-space="sRGB" renderer="colorManagement: true; physicallyCorrectLights: true"
+         vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+  <a-assets>
+    <video id="vid" preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
+  </a-assets>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <!-- target is 1 unit wide (84.1 cm). Film band spans 40.7-86.0 cm down the 118.9 cm sheet.
+       Screen height = band height (45.3 cm = 0.539), viewer aspect 950:700, right edge on the 2.4 cm margin. -->
+  <a-entity id="tgt" mindar-image-target="targetIndex: 0">
+    <a-plane color="#000000" position="0.106 -0.0466 0.004" width="0.745" height="0.553"></a-plane>
+    <a-video src="#vid" position="0.106 -0.0466 0.008" width="0.731" height="0.539"></a-video>
+  </a-entity>
+</a-scene>
+
+<script>
+const VIEW = { A: 'magma_column_rhyolite_no_recharge.html',
+               B: 'magma_column_rhyolite_neutral_buoyancy.html',
+               C: 'magma_column_magemin_composition.html' };
+const vid = document.getElementById('vid');
+const EXT = vid.canPlayType('video/mp4; codecs="avc1.42E01E"') ? 'mp4' : 'webm';
+vid.src = `media/runB.${EXT}`;
+const hint = document.getElementById('hint');
+const sceneEl = document.getElementById('scene');
+
+document.getElementById('go').addEventListener('click', async () => {
+  document.getElementById('start').style.display = 'none';
+  try { await vid.play(); vid.pause(); } catch (e) {}   // unlock playback inside the user gesture
+  sceneEl.systems['mindar-image-system'].start();
+});
+
+const tgt = document.getElementById('tgt');
+tgt.addEventListener('targetFound', () => { hint.style.display = 'none'; vid.play().catch(() => {}); });
+tgt.addEventListener('targetLost',  () => { hint.style.display = 'block'; hint.textContent = 'Looking for the poster…'; vid.pause(); });
+
+document.querySelectorAll('#bar button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#bar button').forEach(x => x.classList.toggle('on', x === b));
+  const k = b.dataset.run;
+  const wasPlaying = !vid.paused;
+  vid.src = `media/run${k}.${EXT}`; vid.load();
+  if (wasPlaying) vid.play().catch(() => {});
+  document.getElementById('viewer').href = 'viewers/' + VIEW[k];
+}));
+</script>
+</body>
+</html>
